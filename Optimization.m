@@ -505,26 +505,26 @@ else
         'Setup complete. Press "Play" in COSMED and press "ENTER" in MATLAB');
     pause
 
-    working=0; %Check if working
-    %Sometimes it just doesn't start right away and you just need to try again
-    %to establish the tcpclient. So this does that until it is working.
-    set(handles.StatusText,'String',...
-        'Checking for breath data from Omnia...');
-    flushinput(tTCP);
-    while working==0
-        try
-            fopen(tTCP);
-        catch
-        end
-        pause(2)
-        if tTCP.BytesAvailable>0
-            t1=fread(tTCP,tTCP.BytesAvailable);
-            if length(t1)>0
-                working=1;
-            end
-        else
-        end
-    end
+%     working=0; %Check if working
+%     %Sometimes it just doesn't start right away and you just need to try again
+%     %to establish the tcpclient. So this does that until it is working.
+%     set(handles.StatusText,'String',...
+%         'Checking for breath data from Omnia...');
+%     flushinput(tTCP);
+%     while working==0
+%         try
+%             fopen(tTCP);
+%         catch
+%         end
+%         pause(2)
+%         if tTCP.BytesAvailable>0
+%             t1=fread(tTCP,tTCP.BytesAvailable);
+%             if length(t1)>0
+%                 working=1;
+%             end
+%         else
+%         end
+%     end
 
     disp('Ready to begin optimization. Have participant begin walking and press "Enter" in MATLAB');
     set(handles.StatusText,'String',...
@@ -556,21 +556,22 @@ else
         'Waiting for start command from A_EXO...');
     pause(0.1);
     SendValueFlag = 0;
-    StopFlag = ' ';
-    ActiveFlag = 0;
-    while 1 == 1
-        if eTCP.Status == "open"
-            [SendValueFlag,StopFlag,ActiveFlag] = CheckValue(eTCP,StopFlag,ActiveFlag);
-            if ActiveFlag == 1 %Ensures exo has started checking for optimization values
-                set(handles.StatusText,'String','Received start command from A_EXO.');
-                pause(1)
-                start(TimerVar)
-                break
-            else
-            end
-        else
-        end
-    end
+    StopFlag = 0;
+    ActiveFlag = 1;
+    start(TimerVar)
+%     while 1 == 1
+%         if eTCP.Status == "open"
+%             [SendValueFlag,StopFlag,ActiveFlag] = CheckValue(eTCP,StopFlag,ActiveFlag);
+%             if ActiveFlag == 1 %Ensures exo has started checking for optimization values
+%                 set(handles.StatusText,'String','Received start command from A_EXO.');
+%                 pause(1)
+%                 start(TimerVar)
+%                 break
+%             else
+%             end
+%         else
+%         end
+%     end
 
     i = 0; %Initialize the counter for storing breaths
     conditiondone = 0; %Initialize to make sure it knows condition isn't done yet.
@@ -594,18 +595,18 @@ else
     DoneFirstValue = 0;
     SetpointHistory = [];
     while 1 == 1
-        if eTCP.Status == "open"
-            [SendValueFlag,StopFlag,ActiveFlag] = CheckValue(eTCP,StopFlag,ActiveFlag);
+        if 1 == 1
+%             [SendValueFlag,StopFlag,ActiveFlag] = CheckValue(eTCP,StopFlag,ActiveFlag);
             if ActiveFlag == 1 && generationdone == 0
                 while 1 == 1
-                    [SendValueFlag,StopFlag,ActiveFlag] = CheckValue(eTCP,StopFlag,ActiveFlag);
+%                     [SendValueFlag,StopFlag,ActiveFlag] = CheckValue(eTCP,StopFlag,ActiveFlag);
                     if StopFlag == 0 && DoneFirstValue == 0 && GUI_Variables.Stopped == 0
                         NextParamsBig = TimerVar.UserData;
                         NextParams = NextParamsBig(2,:)
                         if NumberofParams == 1
-                            fwrite(eTCP,num2str(NextParams(1)));
+%                             fwrite(eTCP,num2str(NextParams(1)));
                         elseif NumberofParams == 2
-                            fwrite(eTCP,horzcat(num2str(NextParams(1)),'_',num2str(NextParams(2))));
+%                             fwrite(eTCP,horzcat(num2str(NextParams(1)),'_',num2str(NextParams(2))));
                         end
                         DoneFirstValue = 1;
                         set(handles.StatusText,'String',...
@@ -655,9 +656,9 @@ else
                             NextParamsBig = TimerVar.UserData;
                             NextParams = NextParamsBig(2,:)
                             if NumberofParams == 1
-                                fwrite(eTCP,num2str(NextParams(1)))
+%                                 fwrite(eTCP,num2str(NextParams(1)))
                             elseif NumberofParams == 2
-                                fwrite(eTCP,horzcat(num2str(NextParams(1)),'_',num2str(NextParams(2))));
+%                                 fwrite(eTCP,horzcat(num2str(NextParams(1)),'_',num2str(NextParams(2))));
                             end
                             set(handles.StatusText,'String',...
                             {'Sent setpoint to A_EXO: ' ...
@@ -687,12 +688,10 @@ else
                              end
                             tic %reinitialize timer once you start next controller
                             %nonzeros(breathtimes) %uncomment if you want to see that its working
-                            [SS, y_bar] = metabolic_fit_JB(fullrate, breathtimes); 
-                            %[SS, y_bar]=fake_metabolic_fit_JB(ParamsForCondition); %Used for
+                            [SS, y_bar]=fake_metabolic_fit_JB(ParamsForCondition); %Used for
                             Full_y_bar{ConditionNumber} = y_bar';
                             %testing the optimization
-                            Full_Metabolic_Data_to_Save{ConditionNumber} = [nonzeros(fullrate), nonzeros(breathtimes)];
-                            %Full_Metabolic_Data_to_Save{ConditionNumber} = [y_bar',10*y_bar'];
+                            Full_Metabolic_Data_to_Save{ConditionNumber} = [y_bar',10*y_bar'];
                             SSdata(ConditionNumber, :) = [SS, ConditionNumber, ParamsForCondition]; 
                             ConditionNumber = ConditionNumber+1;
                             counteval = counteval+1; %Keeps track of how many conditions have been tested. 
@@ -714,11 +713,11 @@ else
                             save(fullfile(saveDir,['All_Saved_Data_Following_Gen_', num2str(GenerationNumber),...
                                 '_Cond_', num2str(ConditionNumber-1),'_',SSID]),...
                                 '-regexp',['^(?!',VarsToIgnore,'$).']);
-                            [SendValueFlag,StopFlag,ActiveFlag] = CheckValue(eTCP,StopFlag,ActiveFlag);
+%                             [SendValueFlag,StopFlag,ActiveFlag] = CheckValue(eTCP,StopFlag,ActiveFlag);
                             if StopFlag == 1 || GUI_Variables.Stopped == 1
                                 GUI_Variables.Stopped = 0;
                                 StopFlag = 0;
-                                fwrite(eTCP,'done');
+%                                 fwrite(eTCP,'done');
                                 set(handles.StatusText,'String',...
                                     horzcat(['Optimization stopped by user.'...
                                     ' To restart mid-generation select checkbox'...
@@ -837,7 +836,7 @@ else
     set(handles.StatusText,'String',...
         ['Saved file "Completion_of_Gen_',num2str(GenerationNumber),'_',SSID,'"']);
 
-    fwrite(eTCP,'done') %Send completion code to exo GUI
+%     fwrite(eTCP,'done') %Send completion code to exo GUI
 
     set(handles.StatusText,'String',...
         ['Concluded optimizer generation. To start next generation adjust',...
