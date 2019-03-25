@@ -62,7 +62,7 @@ global GUI_Variables
 
 disp('Initializing optimization GUI...')
 
-t = tcpip('10.18.48.128',55555,'networkrole','client',...
+tTCP =  tcpip('10.18.48.77',55555,'networkrole','client',...
     'InputBufferSize',4096,'Timeout',60); % Omnia TCP
 e = tcpip('0.0.0.0',3000,'networkrole','server');       % A_EXO TCP
 enablestream = load('enablestream.mat'); % Load real-time communication variable
@@ -302,14 +302,14 @@ else
     StartingFromMidGen = GUI_Variables.MidGen;
     NextConditionMidGen = GUI_Variables.CompleteCond;
     Subject_mass = GUI_Variables.SubjectMass;
-    Peak_torque = GUI_Variables.PkTRQ;
-    Min_torque = GUI_Variables.MinTRQ;
+    Peak_torque = GUI_Variables.PkTRQ*Subject_mass;
+    Min_torque = GUI_Variables.MinTRQ*Subject_mass;
     SSID = GUI_Variables.SSID;
     NumberofParams = GUI_Variables.NumParams;
     ConditionsPerGen = GUI_Variables.CondPerGen;
     ConditionTime = GUI_Variables.ConditionTime;
     eTCP = GUI_Variables.EXOTCP
-    t = GUI_Variables.OmniaTCP
+    tTCP =  GUI_Variables.OmniaTCP
     currentDir = cd;                                % Current directory
     saveDir = [currentDir,'\',SSID,'_',date,'\'];   % Save directory
     
@@ -399,7 +399,7 @@ else
         currentDir = cd;                                % Current directory
         saveDir = [currentDir,'\',SSID,'_',date,'\'];   % Save directory
         
-        if strcmp(GUI_Variables.TestDate,date)  %Compare current date to entered date
+        if strcmp(GUI_Variables.TestDate,date) || strcmp(GUI_Variables.TestDate,' ')  %Compare current date to entered date
             load(fullfile(saveDir,['Completion_of_Gen_' num2str(GenerationNumber-1),'_',SSID]));
         else
             load(fullfile(GUI_Variables.pullDir,['Completion_of_Gen_' num2str(GenerationNumber-1),'_',SSID]));
@@ -454,7 +454,7 @@ else
         ['Starting from mid generation on condition ' num2str(NextConditionMidGen) ...
         ' of generation ' num2str(GenerationNumber)]);
 
-    if strcmp(GUI_Variables.TestDate,date)  %Compare current date to entered date
+    if strcmp(GUI_Variables.TestDate,date) || strcmp(GUI_Variables.TestDate,' ')  %Compare current date to entered date
         load(fullfile(saveDir,['All_Saved_Data_Following_Gen_', num2str(GenerationNumber), '_Cond_', num2str(NextConditionMidGen),'_',SSID]))
     else
         load(fullfile(GUI_Variables.pullDir,['All_Saved_Data_Following_Gen_', num2str(GenerationNumber), '_Cond_', num2str(NextConditionMidGen),'_',SSID]))
@@ -510,15 +510,15 @@ else
     %to establish the tcpclient. So this does that until it is working.
     set(handles.StatusText,'String',...
         'Checking for breath data from Omnia...');
-    flushinput(t);
+    flushinput(tTCP);
     while working==0
         try
-            fopen(t);
+            fopen(tTCP);
         catch
         end
         pause(2)
-        if t.BytesAvailable>0
-            t1=fread(t,t.BytesAvailable);
+        if tTCP.BytesAvailable>0
+            t1=fread(tTCP,tTCP.BytesAvailable);
             if length(t1)>0
                 working=1;
             end
@@ -575,8 +575,8 @@ else
     i = 0; %Initialize the counter for storing breaths
     conditiondone = 0; %Initialize to make sure it knows condition isn't done yet.
     generationdone = 0; %Initialize to say that the generation isn't done yet. 
-   if t.BytesAvailable>0
-       t3 = fread(t,t.BytesAvailable); %Just to clear it.
+   if tTCP.BytesAvailable>0
+       t3 = fread(tTCP,tTCP.BytesAvailable); %Just to clear it.
    end
     tic %supplementary timer for tracking breath times
     CurrentCondition = ConditionNumber;
@@ -638,7 +638,7 @@ else
                                 if ConditionNumber<CurrentCondition
                                     conditiondone = 1; %Once the timer has fired so it updated the ConditionNumber.
                                 else %Else you collect breath data.
-                                    [t,i,fullrate,breathtimes] = run_on_timer(t,i, fullrate, breathtimes);
+                                    [tTCP,i,fullrate,breathtimes] = run_on_timer(tTCP,i, fullrate, breathtimes);
                                     pause(.1) %You will stay in this loop until you are done with the condition. 
                                     %This just searches for new breath data and stores it if there is
                                     %any. 
@@ -710,7 +710,7 @@ else
                              num2str(GenerationNumber), '_Cond_',...
                                 num2str(ConditionNumber-1),'_',SSID,'"']});
                             VarsToIgnore = ['eventdata|GUI_Variables|handles|hObject|ActiveFlag'...
-                            '|DoneFirstValue|SendValueFlag|SetpointHistory'];
+                            '|DoneFirstValue|SendValueFlag|SetpointHistory|eTCP|tTCP'];
                             save(fullfile(saveDir,['All_Saved_Data_Following_Gen_', num2str(GenerationNumber),...
                                 '_Cond_', num2str(ConditionNumber-1),'_',SSID]),...
                                 '-regexp',['^(?!',VarsToIgnore,'$).']);
@@ -742,6 +742,7 @@ else
                                     set(handles.RTSetpointHistoryText,'String',...
                                          num2str(SetpointHistory(:,2)));
                                 end
+                                GUI_Variables.TestDate = date;
                                 error('User ended optimization.');
                             end
                             if ConditionNumber <= ConditionsPerGen
@@ -872,6 +873,7 @@ else
     set(gca,'XTick',1:GenerationNumber);
     set(gca,'FontName','Arial');
     set(gca,'FontWeight','Bold');
+    hold off
     
     saveas(gcf,fullfile(saveDir,[get(gcf,'Name'),'.png']));
     
@@ -901,7 +903,7 @@ else
     FullMet=Full_Metabolic_Data_to_Save;
     hold on;
     for i = 1:length(FullMet)
-        plot(FullMet{1,i}(:,2),Full_y_bar{1,i}(:,1),LineColors{i}); %Plot fit metabolic data
+        plot(FullMet{1,i}(:,2),Full_y_bar{1,i}',LineColors{i}); %Plot fit metabolic data
         LegendStr{i} = [num2str(Old_Params_full(i)),' Nm'];
     end
     for i = 1:length(FullMet)
@@ -952,11 +954,11 @@ end
 % --- Check Value Function
 % Checks for values written from the exo computer to start/pause the
 % optimization
-function [ValueFlag,StopFlag,ActiveFlag] = CheckValue(t,StopFlag,ActiveFlag)
+function [ValueFlag,StopFlag,ActiveFlag] = CheckValue(tTCP,StopFlag,ActiveFlag)
 %Check the value stored in the buffer
 ValueFlag = 1;
-if t.BytesAvailable>0 && StopFlag ~= 1
-    str = fread(t,t.BytesAvailable);
+if tTCP.BytesAvailable>0 && StopFlag ~= 1
+    str = fread(tTCP,tTCP.BytesAvailable);
     if char(str') == "start"
         ValueFlag = 1;
         StopFlag = 0;
@@ -970,7 +972,7 @@ if t.BytesAvailable>0 && StopFlag ~= 1
         ValueFlag = 1;
         StopFlag = 0;
     end
-elseif t.BytesAvailable == 0
+elseif tTCP.BytesAvailable == 0
     return
 end
 
