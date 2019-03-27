@@ -22,7 +22,7 @@ function varargout = Optimization(varargin)
 
 % Edit the above text to modify the response to help Optimization
 
-% Last Modified by GUIDE v2.5 11-Mar-2019 17:22:56
+% Last Modified by GUIDE v2.5 27-Mar-2019 15:08:36
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -1408,4 +1408,12 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
+end
+
+
+% --- Executes on button press in SeedNextGen.
+function SeedNextGen_Callback(hObject, eventdata, handles)
+% hObject    handle to SeedNextGen (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 end
