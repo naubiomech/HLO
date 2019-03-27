@@ -4,6 +4,7 @@ function [xmean, mu, weights, ps, pc, C, c1, cmu, cc, sigma, cs, damps,...
     cmu, cc, sigma, cs, damps, chiN, eigeneval, invsqrtC, counteval, x, lambda, N, B, D, mueff, Peak_torque, Min_torque)
 
  % Sort by fitness and compute weighted mean into xmean
+    orderedconds = orderedconds(any(orderedconds,2),:);   %Remove rows of all zeros
     metrates = orderedconds(:,1);
     idx = orderedconds(:,2);
     best_params_from_previous_gen = orderedconds(1, 3:length(orderedconds(1,:)));
@@ -129,15 +130,23 @@ function [xmean, mu, weights, ps, pc, C, c1, cmu, cc, sigma, cs, damps,...
         plot((testpoints_rot(:,1) + X0)*Peak_torque,(testpoints_rot(:,2) + Y0),'rx')
         
       clearvars x
-        x(1, 1:lambda-2)=testpoints_rot(:,1)'+X0;
-        %x(2, 1:lambda-2)=testpoints_rot(:,2)'+Y0;
+      WhereToPlace = ones(1,lambda);    %Need to make a vector of where to place new conditions
+      WhereToPlace(3) = 0;      % 3rd parameter to test should be best from previous gen
+      WhereToPlace(lambda) = 0; % Last parameter to test should be mean from previous gen
+      WhereToPlace = logical(WhereToPlace); %Make this array a logical array
+      PossibleLoc = 1:lambda;   % Vector from 1 to lambda indicating position of conditions
+      NewParamLocations = PossibleLoc(WhereToPlace);    % Where to put the new parameters to test
+      OldParamLocations = PossibleLoc(~WhereToPlace);   % Where to put the previous gen parameters
+      x = zeros(1,lambda);      % Presize the conditions array
+      x(1, NewParamLocations)=testpoints_rot(:,1)'+X0;
+      
       %To test again the best one from last time
-      x=[x, best_params_from_previous_as_col];
+      x(1,OldParamLocations(1:end-1)) = best_params_from_previous_as_col;
       
       %x(:,lambda-1)=best_params_from_previous_as_col;
       %To test what is predicted as the best for this one, xmean
       %x(:, lambda)=xmean;
-      x=[x, xmean];
+      x(1,OldParamLocations(end))= xmean;
       disp('Before constraints')
       x
      % pause
