@@ -70,7 +70,7 @@ enablestream = '<OmniaXB><System><EnableRealTimeInformation><Enabled>1</Enabled>
 GUI_Variables = struct('OmniaTCP',tTCP,'EXOTCP',eTCP,'StreamStr',enablestream,...
     'GenNum',1,'MidGen',0,'CompleteCond',0,'SubjectMass',1,'PkTRQ',0.35,'MinTRQ',0.2,...
     'SSID',NaN,'NumParams',0,'CondPerGen',7,'ConditionTime',240,'Stopped',0,...
-    'TestDate',' ','pullDir',' ');
+    'TestDate',' ','pullDir',' ','SeedNextGen',0);
 
 set(handles.GenNumber,'String','1');
 set(handles.MidGenCheckbox,'Value',0);
@@ -297,7 +297,7 @@ elseif GUI_Variables.NumParams == 0
         'Number of parameters to optimize not selected. Cannot begin optimization.');
 else
 
-
+    GUI_Variables.SeedNextGen = 0;
     GenerationNumber = GUI_Variables.GenNum;
     StartingFromMidGen = GUI_Variables.MidGen;
     NextConditionMidGen = GUI_Variables.CompleteCond;
@@ -744,7 +744,7 @@ else
                                 GUI_Variables.TestDate = date;
                                 error('User ended optimization.');
                             end
-                            if ConditionNumber <= ConditionsPerGen
+                            if ConditionNumber <= ConditionsPerGen && GUI_Variables.SeedNextGen == 0
                                 disp('Controller should change to next set of parameters. If you wish to stop mid-generation, press ctrl c')
                                 i = 0; %Initialize the counter for storing breaths
                                 conditiondone = 0; %Initialize to make sure it knows condition isn't done yet.
@@ -752,42 +752,50 @@ else
                                 fullrate = zeros(1,200);
                                 breathtimes = zeros(1,200);
 
-                            else %So if you are done with all the conditions for that generation
-                                orderedconds = ordering_conditions(SSdata); %(this is a conditionspergen rows by 2+params columns matrix.
+                            elseif ConditionNumber == ConditionsPerGen || GUI_Variables.SeedNextGen == 1 %So if you are done with all the conditions for that generation
+                                if GUI_Variables.SeedNextGen == 1 && ConditionNumber-1 < 3
+                                    set(handles.StatusText,'String',...
+                                        {'Need at least 3 conditions to seed next generation! Stopping optimization. To continue, start from mid-geneneration.'...
+                                        ['Last completed condition was ',ConditionNumber-1,'.']} );
+                                    GUI_Variables.SeedNextGen = 0;
+                                    error('Not enough conditions completed to seed next generation. Start from mid-generation');
+                                else
+                                
+                                    orderedconds = ordering_conditions(SSdata); %(this is a conditionspergen rows by 2+params columns matrix.
 
-                                %Scale back into from 0 to 1, 0 to 1 for both parameters for use in
-                                %CMA. 
-                                %orderedconds(:,1) = orderedconds(:,1);
-                                %orderedconds(:,2) = orderedconds(:,2);
-                                if NumberofParams == 1
-                                    orderedconds(:,3) = orderedconds(:,3)/Peak_torque;
-                                    Next_Gen = @create_next_generation_newCMA_1Param;
-                                elseif NumberofParams == 2
-                                    orderedconds(:,3) = orderedconds(:,3)/Peak_torque;
-                                    orderedconds(:,4) = orderedconds(:,4)/100; 
-                                    Next_Gen = @create_next_generation_newCMA_2Param;
+                                    %Scale back into from 0 to 1, 0 to 1 for both parameters for use in
+                                    %CMA. 
+                                    %orderedconds(:,1) = orderedconds(:,1);
+                                    %orderedconds(:,2) = orderedconds(:,2);
+                                    if NumberofParams == 1
+                                        orderedconds(:,3) = orderedconds(:,3)/Peak_torque;
+                                        Next_Gen = @create_next_generation_newCMA_1Param;
+                                    elseif NumberofParams == 2
+                                        orderedconds(:,3) = orderedconds(:,3)/Peak_torque;
+                                        orderedconds(:,4) = orderedconds(:,4)/100; 
+                                        Next_Gen = @create_next_generation_newCMA_2Param;
+                                    end
+                                    Old_Params_full = Params_full; %Save old parameters for plotting
+
+                                    [xmean, mu, weights, ps, pc, C, c1, cmu, cc, sigma, cs, damps,...
+                                        chiN, eigeneval, invsqrtC, counteval, x, lambda, Params_full, N, B, D, mueff] = ...
+                                        Next_Gen(orderedconds, xmean, mu, weights,ps, pc, C, c1,...
+                                        cmu, cc, sigma, cs, damps, chiN, eigeneval, invsqrtC, counteval, x, lambda, N, B, D, mueff, Peak_torque, Min_torque)
+
+                                    %When params_full comes out of the CMA, it comes out as 0 to 1, 0
+                                    %to 1. 
+                                    %Turn Params_full into actual numbers.
+                                    if NumberofParams == 1
+                                        Params_full(:,1) = Params_full(:,1)*Peak_torque; %Peak Torque (Nm)
+                                        xmean_num = xmean'.* [Peak_torque];
+                                    elseif NumberofParams == 2
+                                        Params_full(:,1) = Params_full(:,1)*Peak_torque; %Peak Torque (Nm)
+                                        Params_full(:,2) = Params_full(:,2)*100;  %Rise time (% of stance time)
+                                        xmean_num = xmean'.* [Peak_torque, 100];
+                                    end
+                                    generationdone=1;
+                                    stop(TimerVar) %Stops the timer. 
                                 end
-                                Old_Params_full = Params_full; %Save old parameters for plotting
-
-                                [xmean, mu, weights, ps, pc, C, c1, cmu, cc, sigma, cs, damps,...
-                                    chiN, eigeneval, invsqrtC, counteval, x, lambda, Params_full, N, B, D, mueff] = ...
-                                    Next_Gen(orderedconds, xmean, mu, weights,ps, pc, C, c1,...
-                                    cmu, cc, sigma, cs, damps, chiN, eigeneval, invsqrtC, counteval, x, lambda, N, B, D, mueff, Peak_torque, Min_torque)
-
-                                %When params_full comes out of the CMA, it comes out as 0 to 1, 0
-                                %to 1. 
-                                %Turn Params_full into actual numbers.
-                                if NumberofParams == 1
-                                    Params_full(:,1) = Params_full(:,1)*Peak_torque; %Peak Torque (Nm)
-                                    xmean_num = xmean'.* [Peak_torque];
-                                elseif NumberofParams == 2
-                                    Params_full(:,1) = Params_full(:,1)*Peak_torque; %Peak Torque (Nm)
-                                    Params_full(:,2) = Params_full(:,2)*100;  %Rise time (% of stance time)
-                                    xmean_num = xmean'.* [Peak_torque, 100];
-                                end
-                                generationdone=1;
-                                stop(TimerVar) %Stops the timer. 
-
 
                             end
                         end
@@ -853,6 +861,7 @@ else
     GUI_Variables.CompleteCond = str2double(get(handles.LastConditionCompleted,'String'));
     GUI_Variables.TestDate = date;
     GUI_Variables.pullDir = [GUI_Variables.SSID,'_',GUI_Variables.TestDate];
+    GUI_Variables.SeedNextGen = 0;
     
     currentDir = cd;                                % Current directory
     saveDir = [currentDir,'\',SSID,'_',date,'\'];   % Save directory
@@ -1416,4 +1425,10 @@ function SeedNextGen_Callback(hObject, eventdata, handles)
 % hObject    handle to SeedNextGen (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
+global GUI_Variables
+
+GUI_Variables.SeedNextGen = 1;
+set(handles.StatusText,'String','Attempting to seed next generation from complete conditions...');
+
 end
