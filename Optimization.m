@@ -752,12 +752,13 @@ else
                                 fullrate = zeros(1,200);
                                 breathtimes = zeros(1,200);
 
-                            elseif ConditionNumber == ConditionsPerGen || GUI_Variables.SeedNextGen == 1 %So if you are done with all the conditions for that generation
+                            else %So if you are done with all the conditions for that generation
                                 if GUI_Variables.SeedNextGen == 1 && ConditionNumber-1 < 3
                                     set(handles.StatusText,'String',...
                                         {'Need at least 3 conditions to seed next generation! Stopping optimization. To continue, start from mid-geneneration.'...
                                         ['Last completed condition was ',ConditionNumber-1,'.']} );
                                     GUI_Variables.SeedNextGen = 0;
+                                    stop(TimerVar);
                                     error('Not enough conditions completed to seed next generation. Start from mid-generation');
                                 else
                                 

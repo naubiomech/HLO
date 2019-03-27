@@ -4,6 +4,7 @@ function [xmean, mu, weights, ps, pc, C, c1, cmu, cc, sigma, cs, damps,...
     cmu, cc, sigma, cs, damps, chiN, eigeneval, invsqrtC, counteval, x, lambda, N, B, D, mueff, Peak_torque, Min_torque)
 
  % Sort by fitness and compute weighted mean into xmean
+    orderedconds = orderedconds(any(orderedconds,2),:);   %Remove rows of all zeros
     metrates = orderedconds(:,1);
     idx = orderedconds(:,2);
     best_params_from_previous_gen = orderedconds(1, 3:length(orderedconds(1,:)));
