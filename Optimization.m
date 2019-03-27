@@ -552,8 +552,8 @@ else
         NextParams=[0 0]; %Initialization of the Nextparams variable, to be checked by exo controller code. 
     end
     
-    set(handles.StatusText,'String',...
-        'Waiting for start command from A_EXO...');
+%     set(handles.StatusText,'String',...
+%         'Waiting for start command from A_EXO...');
     pause(0.1);
     SendValueFlag = 0;
     StopFlag = 0;
