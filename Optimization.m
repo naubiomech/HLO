@@ -690,7 +690,7 @@ else
                             tic %reinitialize timer once you start next controller
                             %nonzeros(breathtimes) %uncomment if you want to see that its working
 %                             [SS, y_bar]=fake_metabolic_fit_JB(ParamsForCondition); %Used for testing the optimization
-                            [SS, y_bar]=metabolic_fit_JB(ParamsForCondition);
+                            [SS, y_bar]=metabolic_average(fullrate,breathtimes);
                             Full_y_bar{ConditionNumber} = y_bar';
                             Full_Metabolic_Data_to_Save{ConditionNumber} = [nonzeros(fullrate),nonzeros(breathtimes)];
                             %Full_Metabolic_Data_to_Save{ConditionNumber} = [y_bar',10*y_bar'];
