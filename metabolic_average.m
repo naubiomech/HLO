@@ -16,10 +16,6 @@ y_meas=side_trim(:,1);
 estimated_dot_E = mean(y_meas(end-5:end));      %Average last minute of metabolics
 y_bar = estimated_dot_E*ones(length(y_meas),1); %Make a line of constant slope
 
-%find the error between the best-fit predicted response and the
-%measurement vector
-mean_squared_error = ((y_bar-y_meas)'*(y_bar-y_meas))/n_samp;
-
 SSa=estimated_dot_E;
 
 
