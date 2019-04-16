@@ -70,7 +70,7 @@ enablestream = '<OmniaXB><System><EnableRealTimeInformation><Enabled>1</Enabled>
 GUI_Variables = struct('OmniaTCP',tTCP,'EXOTCP',eTCP,'StreamStr',enablestream,...
     'GenNum',1,'MidGen',0,'CompleteCond',0,'SubjectMass',1,'PkTRQ',0.35,'MinTRQ',0.2,...
     'SSID',NaN,'NumParams',0,'CondPerGen',7,'ConditionTime',240,'Stopped',0,...
-    'TestDate',' ','pullDir',' ','SeedNextGen',0);
+    'TestDate',' ','pullDir',' ','SeedNextGen',0,'Streaming',0);
 
 set(handles.GenNumber,'String','1');
 set(handles.MidGenCheckbox,'Value',0);
@@ -140,6 +140,16 @@ try
     end
 catch
 end
+
+if ~any(isnan(GUI_Variables.SSID)) && (GUI_Variables.GenNum>1 || GUI_Variables.MidGen==1)
+    set(handles.TestDate,'enable','on')
+elseif GUI_Variables.GenNum == 1 && GUI_Variables.MidGen == 0
+    set(handles.TestDate,'enable','off')
+    set(handles.TestDate,'String','DD-Mon-YYYY')
+    GUI_Variables.pullDir = ' ';
+    GUI_Variables.TestDate = ' ';
+end
+
 end
 
 % Hint: get(hObject,'Value') returns toggle state of MidGenCheckbox
@@ -564,6 +574,7 @@ else
             [SendValueFlag,StopFlag,ActiveFlag] = CheckValue(eTCP,StopFlag,ActiveFlag);
             if ActiveFlag == 1 %Ensures exo has started checking for optimization values
                 set(handles.StatusText,'String','Received start command from A_EXO.');
+                GUI_Variables.Streaming = 1;
                 pause(1)
                 start(TimerVar)
                 break
@@ -867,6 +878,7 @@ else
     GUI_Variables.TestDate = date;
     GUI_Variables.pullDir = [GUI_Variables.SSID,'_',GUI_Variables.TestDate];
     GUI_Variables.SeedNextGen = 0;
+    GUI_Variables.Streaming = 0;
     
     currentDir = cd;                                % Current directory
     saveDir = [currentDir,'\',SSID,'_',date,'\'];   % Save directory
@@ -1148,9 +1160,9 @@ catch
         'Invalid generation number. Try again.');
 end
 
-if ~any(isnan(GUI_Variables.SSID)) && GUI_Variables.GenNum>1
+if ~any(isnan(GUI_Variables.SSID)) && (GUI_Variables.GenNum>1 || GUI_Variables.MidGen==1)
     set(handles.TestDate,'enable','on')
-elseif GUI_Variables.GenNum == 1
+elseif GUI_Variables.GenNum == 1 && GUI_Variables.MidGen == 0
     set(handles.TestDate,'enable','off')
     set(handles.TestDate,'String','DD-Mon-YYYY')
     GUI_Variables.pullDir = ' ';
@@ -1433,7 +1445,171 @@ function SeedNextGen_Callback(hObject, eventdata, handles)
 
 global GUI_Variables
 
-GUI_Variables.SeedNextGen = 1;
-set(handles.StatusText,'String','Attempting to seed next generation after completing current condition...');
+if GUI_Variables.Streaming == 1 %If we're actively sending data, seed after completion of current condition
+
+    GUI_Variables.SeedNextGen = 1;
+    set(handles.StatusText,'String','Attempting to seed next generation after completing current condition...');
+
+else %If we're stopped we can attempt to seed from the available saved conditions
+    
+    GenerationNumber = GUI_Variables.GenNum;
+    NextConditionMidGen = GUI_Variables.CompleteCond;
+    SSID = GUI_Variables.SSID;
+    
+    currentDir = cd;                                % Current directory
+    saveDir = [currentDir,'\',SSID,'_',date,'\'];   % Save directory
+    mkdir(saveDir);
+    
+    set(handles.StatusText,'String','Attempting to seed next generation from saved condition...');
+    if strcmp(GUI_Variables.TestDate,date) || strcmp(GUI_Variables.TestDate,' ')  %Compare current date to entered date
+        load(fullfile(saveDir,['All_Saved_Data_Following_Gen_', num2str(GenerationNumber), '_Cond_', num2str(NextConditionMidGen),'_',SSID]))
+    else
+        load(fullfile(GUI_Variables.pullDir,['All_Saved_Data_Following_Gen_', num2str(GenerationNumber), '_Cond_', num2str(NextConditionMidGen),'_',SSID]))
+    end
+    currentDir = cd;                                % Current directory
+    saveDir = [currentDir,'\',SSID,'_',date,'\'];   % Save directory
+    
+    orderedconds = ordering_conditions(SSdata); %(this is a conditionspergen rows by 2+params columns matrix.
+
+    %Scale back into from 0 to 1, 0 to 1 for both parameters for use in
+    %CMA. 
+    %orderedconds(:,1) = orderedconds(:,1);
+    %orderedconds(:,2) = orderedconds(:,2);
+    if NumberofParams == 1
+        orderedconds(:,3) = orderedconds(:,3)/Peak_torque;
+        Next_Gen = @create_next_generation_newCMA_1Param;
+    elseif NumberofParams == 2
+        orderedconds(:,3) = orderedconds(:,3)/Peak_torque;
+        orderedconds(:,4) = orderedconds(:,4)/100; 
+        Next_Gen = @create_next_generation_newCMA_2Param;
+    end
+    Old_Params_full = Params_full; %Save old parameters for plotting
+
+    [xmean, mu, weights, ps, pc, C, c1, cmu, cc, sigma, cs, damps,...
+        chiN, eigeneval, invsqrtC, counteval, x, lambda, Params_full, N, B, D, mueff] = ...
+        Next_Gen(orderedconds, xmean, mu, weights,ps, pc, C, c1,...
+        cmu, cc, sigma, cs, damps, chiN, eigeneval, invsqrtC, counteval, x, lambda, N, B, D, mueff, Peak_torque, Min_torque)
+    
+    if NumberofParams == 1
+        Params_full(:,1) = Params_full(:,1)*Peak_torque; %Peak Torque (Nm)
+        xmean_num = xmean'.* [Peak_torque];
+    elseif NumberofParams == 2
+        Params_full(:,1) = Params_full(:,1)*Peak_torque; %Peak Torque (Nm)
+        Params_full(:,2) = Params_full(:,2)*100;  %Rise time (% of stance time)
+        xmean_num = xmean'.* [Peak_torque, 100];
+    end
+    
+    disp('The generation is complete.')
+    disp('The next set of parameters is')
+    Params_full
+    disp('The new xmean is')
+    xmean_num
+    xmean_history = [xmean_history; xmean_num]
+    set(handles.StatusText,'String',...
+        {'The generation is complete.',...
+        'The next set of parameters is',...
+        num2str(Params_full),...
+        'The new xmean is',...
+        num2str(xmean_num)});
+    if NumberofParams == 1
+        set(handles.XMeanTrq,'String',...
+            num2str(xmean_history(:,1)));
+    elseif NumberofParams == 2
+        set(handles.XMeanTrq,'String',...
+            num2str(xmean_history(:,1)));
+        set(handles.XMeanRT,'String',...
+           num2str(xmean_history(:,2)));
+    end
+    
+    clearvars GenerationAcc 
+    VarsToIgnore = ['eventdata|GUI_Variables|handles|hObject|ActiveFlag'...
+        '|DoneFirstValue|SendValueFlag|SetpointHistory|eTCP'];
+    
+    save(fullfile(saveDir,['Completion_of_Gen_', num2str(GenerationNumber),'_',SSID]),...
+        '-regexp',['^(?!',VarsToIgnore,'$).']);
+    set(handles.StatusText,'String',...
+        ['Saved file "Completion_of_Gen_',num2str(GenerationNumber),'_',SSID,'"']);
+    
+    set(handles.StatusText,'String',...
+        ['Concluded optimizer generation. To start next generation adjust',...
+        ' optimizer settings and press "Start Optimizer"']);
+    set(handles.GenNumber,'String',num2str(GenerationNumber+1));
+    set(handles.GenNumber,'Value',GenerationNumber+1);
+    set(handles.MidGenCheckbox,'Value',0);
+    set(handles.LastConditionCompleted,'enable','off');
+    set(handles.LastConditionCompleted,'String','0');
+    set(handles.TestDate,'enable','off');
+    set(handles.TestDate,'String','DD-Mon-YYYY');
+    GUI_Variables.GenNum = get(handles.GenNumber,'Value');
+    GUI_Variables.MidGen = get(handles.MidGenCheckbox,'Value');
+    GUI_Variables.CompleteCond = str2double(get(handles.LastConditionCompleted,'String'));
+    GUI_Variables.TestDate = date;
+    GUI_Variables.pullDir = [GUI_Variables.SSID,'_',GUI_Variables.TestDate];
+    GUI_Variables.SeedNextGen = 0;
+    GUI_Variables.Streaming = 0;
+    
+    figure(100);
+    hold on
+    plot(1:GenerationNumber,xmean_history(:,1)/Subject_mass,'-k','LineWidth',2);
+    plot(1:GenerationNumber,xmean_history(:,1)/Subject_mass,'xr','MarkerSize',10);
+    GenPlot = repmat(1:GenerationNumber,length(Old_Params_full),1);
+    for j = 1:length(Old_Params_full)
+        plot(GenPlot(:,GenerationNumber),Old_Params_full/Subject_mass,'*k','MarkerSize',5);
+    end
+    xlabel('Generation Number')
+    ylabel('Normalized Torque Magnitude [N*m/kg]')
+    title('Mean Torque Setpoint Convergence')
+    set(gcf,'Name',horzcat('Trq_Convergence_',SSID))
+    set(gca,'XTick',1:GenerationNumber);
+    set(gca,'FontName','Arial');
+    set(gca,'FontWeight','Bold');
+    hold off
+    
+    saveas(gcf,fullfile(saveDir,[get(gcf,'Name'),'.png']));
+    
+    if NumberofParams==2
+        figure(101);
+        plot(1:GenerationNumber,xmean_history(:,2),'-k','LineWidth',2);
+        hold on
+        plot(1:GenerationNumber,xmean_history(:,2),'xr','MarkerSize',10);
+        xlabel('Generation Number')
+        ylabel('Rise Time Percentage [% Stance]')
+        title('Rise Time Setpoint Convergence')
+        set(gcf,'Name',horzcat('RiseTime_Convergence_',SSID))
+        set(gca,'XTick',1:GenerationNumber);
+        set(gca,'FontName','Arial');
+        set(gca,'FontWeight','Bold');
+        hold off
+
+       saveas(gcf,fullfile(saveDir,[get(gcf,'Name'),'.png']));
+    end
+    
+    close(figure(102));
+    figure(102);
+    LineColors = {'-b','-g','-r','-m','-k','-c','-y',...
+        '--b','--g','--r','--m','--k','--c','--y'};
+    PointColors = {'xb','xg','xr','xm','xk','xc','xy',...
+        'ob','og','or','om','ok','oc','oy'};
+    FullMet=Full_Metabolic_Data_to_Save;
+    hold on;
+    for i = 1:length(FullMet)
+        plot(FullMet{1,i}(:,2),Full_y_bar{1,i}',LineColors{i}); %Plot fit metabolic data
+        LegendStr{i} = [num2str(Old_Params_full(i)),' Nm'];
+    end
+    for i = 1:length(FullMet)
+        plot(FullMet{1,i}(:,2),FullMet{1,i}(:,1),PointColors{i}); %Plot raw metabolic data
+    end
+    legend(LegendStr,'Location','Best');
+    xlabel('Condition Time [s]')
+    ylabel('Metabolic Rate [W]')
+    title(['Metabolic Rate Comparison for ','Gen ',num2str(GenerationNumber)]);
+    set(gcf,'Name',['MetRateComparison_',SSID,'_Gen_',num2str(GenerationNumber)]);
+    set(gca,'FontName','Arial');
+    set(gca,'FontWeight','Bold');
+    hold off
+    
+    saveas(gcf,fullfile(saveDir,[get(gcf,'Name'),'.png']));      
+    
+end
 
 end
