@@ -69,14 +69,14 @@ enablestream = '<OmniaXB><System><EnableRealTimeInformation><Enabled>1</Enabled>
 
 GUI_Variables = struct('OmniaTCP',tTCP,'EXOTCP',eTCP,'StreamStr',enablestream,...
     'GenNum',1,'MidGen',0,'CompleteCond',0,'SubjectMass',1,'PkTRQ',0.35,'MinTRQ',0.2,...
-    'SSID',NaN,'NumParams',0,'CondPerGen',7,'ConditionTime',240,'Stopped',0,...
+    'SSID',NaN,'NumParams',0,'CondPerGen',7,'ConditionTime',210,'Stopped',0,...
     'TestDate',' ','pullDir',' ','SeedNextGen',0,'Streaming',0);
 
 set(handles.GenNumber,'String','1');
 set(handles.MidGenCheckbox,'Value',0);
 set(handles.LastConditionCompleted,'enable','off');
 set(handles.LastConditionCompleted,'String','0');
-set(handles.ConditionTime,'String','240');
+set(handles.ConditionTime,'String','210');
 set(handles.SubjectMass,'String','1');
 set(handles.MaxPeakTorque,'String','0.35');
 set(handles.MinTRQ,'String','0.2');
