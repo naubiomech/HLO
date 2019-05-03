@@ -1523,7 +1523,7 @@ else %If we're stopped we can attempt to seed from the available saved condition
     
     clearvars GenerationAcc 
     VarsToIgnore = ['eventdata|GUI_Variables|handles|hObject|ActiveFlag'...
-        '|DoneFirstValue|SendValueFlag|SetpointHistory|eTCP'];
+        '|DoneFirstValue|SendValueFlag|SetpointHistory|eTCP|tTCP'];
     
     save(fullfile(saveDir,['Completion_of_Gen_', num2str(GenerationNumber),'_',SSID]),...
         '-regexp',['^(?!',VarsToIgnore,'$).']);
