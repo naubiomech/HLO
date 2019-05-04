@@ -639,6 +639,8 @@ else
                                 num2str(SetpointHistory(:,2)));
                          end
                     elseif StopFlag == 0 && DoneFirstValue == 1
+                        LapSpeeds = [];
+                        AverageSpeeds = zeros(1,ConditionsPerGen);
                         %% Big while loop for if generation is done
                         while generationdone == 0
 
@@ -650,6 +652,15 @@ else
                                 if ConditionNumber<CurrentCondition
                                     conditiondone = 1; %Once the timer has fired so it updated the ConditionNumber.
                                 else %Else you collect breath data.
+                                    if eTCP.BytesAvailable > 0
+                                        LapTime = str2double(char(fread(eTCP,eTCP.BytesAvailable))');
+                                        if LapTime < 0 %In case of a weird lap
+                                            LapSpeeds = LapSpeeds;
+                                        else
+                                            disp(['Received Lap Time: ',num2str(LapTime)]);
+                                            LapSpeeds = [LapSpeeds, (200*0.3048)/LapTime];
+                                        end
+                                    end
                                     [tTCP,i,fullrate,breathtimes] = run_on_timer(tTCP,i, fullrate, breathtimes);
                                     pause(.1) %You will stay in this loop until you are done with the condition. 
                                     %This just searches for new breath data and stores it if there is
@@ -664,6 +675,9 @@ else
                                 end
                             end
                             %Once the condition is done:
+                            AverageLapSpeed = mean(LapSpeeds(2:end));
+                            AverageSpeeds(ConditionNumber) = AverageLapSpeed;
+                            LapSpeeds = [];
                             NextParamsBig = TimerVar.UserData;
                             NextParams = NextParamsBig(2,:)
                             if NumberofParams == 1
@@ -701,9 +715,8 @@ else
                              end
                             tic %reinitialize timer once you start next controller
                             %nonzeros(breathtimes) %uncomment if you want to see that its working
-                            [SS, y_bar]=fake_metabolic_fit_JB(ParamsForCondition); %Used for
+                            [SS, y_bar]=fake_metabolic_fit_JB(ParamsForCondition,AverageLapSpeed); %Used for testing the optimization
                             Full_y_bar{ConditionNumber} = y_bar';
-                            %testing the optimization
                             Full_Metabolic_Data_to_Save{ConditionNumber} = [y_bar',10*y_bar'];
                             SSdata(ConditionNumber, :) = [SS, ConditionNumber, ParamsForCondition]; 
                             ConditionNumber = ConditionNumber+1;
@@ -724,7 +737,7 @@ else
                              num2str(GenerationNumber), '_Cond_',...
                                 num2str(ConditionNumber-1),'_',SSID,'"']});
                             VarsToIgnore = ['eventdata|GUI_Variables|handles|hObject|ActiveFlag'...
-                            '|DoneFirstValue|SendValueFlag|SetpointHistory|eTCP|tTCP'];
+                            '|DoneFirstValue|SendValueFlag|SetpointHistory|eTCP|tTCP|LapTimes|AverageLapSpeed'];
                             save(fullfile(saveDir,['All_Saved_Data_Following_Gen_', num2str(GenerationNumber),...
                                 '_Cond_', num2str(ConditionNumber-1),'_',SSID]),...
                                 '-regexp',['^(?!',VarsToIgnore,'$).']);
@@ -776,7 +789,7 @@ else
                                     stop(TimerVar);
                                     error('Not enough conditions completed to seed next generation. Start from mid-generation');
                                 else
-                                
+                                    fwrite(eTCP,'done');
                                     orderedconds = ordering_conditions(SSdata); %(this is a conditionspergen rows by 2+params columns matrix.
 
                                     %Scale back into from 0 to 1, 0 to 1 for both parameters for use in
@@ -854,7 +867,7 @@ else
 
     clearvars GenerationAcc 
     VarsToIgnore = ['eventdata|GUI_Variables|handles|hObject|ActiveFlag'...
-        '|DoneFirstValue|SendValueFlag|SetpointHistory|eTCP|tTCP'];
+        '|DoneFirstValue|SendValueFlag|SetpointHistory|eTCP|tTCP|LapTimes|AverageLapSpeed'];
     save(fullfile(saveDir,['Completion_of_Gen_', num2str(GenerationNumber),'_',SSID]),...
         '-regexp',['^(?!',VarsToIgnore,'$).']);
     set(handles.StatusText,'String',...
@@ -936,14 +949,29 @@ else
     end
     legend(LegendStr,'Location','Best');
     xlabel('Condition Time [s]')
-    ylabel('Metabolic Rate [W]')
+    ylabel('Metabolic Rate [W/m/s]')
     title(['Metabolic Rate Comparison for ','Gen ',num2str(GenerationNumber)]);
     set(gcf,'Name',['MetRateComparison_',SSID,'_Gen_',num2str(GenerationNumber)]);
     set(gca,'FontName','Arial');
     set(gca,'FontWeight','Bold');
     hold off
     
-    saveas(gcf,fullfile(saveDir,[get(gcf,'Name'),'.png']));      
+    saveas(gcf,fullfile(saveDir,[get(gcf,'Name'),'.png']));   
+    
+    close(figure(103));
+    figure(103);
+    plot(1:ConditionNumber-1,AverageSpeeds(1:ConditionNumber-1),'xr','MarkerSize',10);
+    hold on
+    plot(1:ConditionNumber-1,AverageSpeeds(1:ConditionNumber-1),'-k','LineWidth',2);
+    xlabel('Condition Number');
+    ylabel('Average Condition Walking Speed [m/s]');
+    title(['Average Walking Speeds for Gen ',num2str(GenerationNumber)]);
+    set(gcf,'Name',['WalkingSpeeds_',SSID,'_Gen_',num2str(GenerationNumber)]);
+    set(gca,'FontName','Arial');
+    set(gca,'XTick',1:ConditionNumber-1);
+    set(gca,'FontWeight','Bold');
+    saveas(gcf,fullfile(saveDir,[get(gcf,'Name'),'.png']));
+    
         
 end    
     
@@ -1523,7 +1551,7 @@ else %If we're stopped we can attempt to seed from the available saved condition
     
     clearvars GenerationAcc 
     VarsToIgnore = ['eventdata|GUI_Variables|handles|hObject|ActiveFlag'...
-        '|DoneFirstValue|SendValueFlag|SetpointHistory|eTCP|tTCP'];
+        '|DoneFirstValue|SendValueFlag|SetpointHistory|eTCP|tTCP|LapTimes|AverageLapSpeed'];
     
     save(fullfile(saveDir,['Completion_of_Gen_', num2str(GenerationNumber),'_',SSID]),...
         '-regexp',['^(?!',VarsToIgnore,'$).']);
