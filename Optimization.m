@@ -606,7 +606,7 @@ else
     DoneFirstValue = 0;
     SetpointHistory = [];
     while 1 == 1
-        if 1 == 1
+        if eTCP.Status == "open"
              [SendValueFlag,StopFlag,ActiveFlag] = CheckValue(eTCP,StopFlag,ActiveFlag);
             if ActiveFlag == 1 && generationdone == 0
                 while 1 == 1
@@ -1629,7 +1629,7 @@ else %If we're stopped we can attempt to seed from the available saved condition
     end
     legend(LegendStr,'Location','Best');
     xlabel('Condition Time [s]')
-    ylabel('Metabolic Rate [W]')
+    ylabel('Metabolic Rate [W/m/s]')
     title(['Metabolic Rate Comparison for ','Gen ',num2str(GenerationNumber)]);
     set(gcf,'Name',['MetRateComparison_',SSID,'_Gen_',num2str(GenerationNumber)]);
     set(gca,'FontName','Arial');
@@ -1637,6 +1637,20 @@ else %If we're stopped we can attempt to seed from the available saved condition
     hold off
     
     saveas(gcf,fullfile(saveDir,[get(gcf,'Name'),'.png']));      
+    
+    close(figure(103));
+    figure(103);
+    plot(1:ConditionNumber-1,AverageSpeeds(1:ConditionNumber-1),'xr','MarkerSize',10);
+    hold on
+    plot(1:ConditionNumber-1,AverageSpeeds(1:ConditionNumber-1),'-k','LineWidth',2);
+    xlabel('Condition Number');
+    ylabel('Average Condition Walking Speed [m/s]');
+    title(['Average Walking Speeds for Gen ',num2str(GenerationNumber)]);
+    set(gcf,'Name',['WalkingSpeeds_',SSID,'_Gen_',num2str(GenerationNumber)]);
+    set(gca,'FontName','Arial');
+    set(gca,'XTick',1:ConditionNumber-1);
+    set(gca,'FontWeight','Bold');
+    saveas(gcf,fullfile(saveDir,[get(gcf,'Name'),'.png']));
     
 end
 
