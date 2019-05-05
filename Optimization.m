@@ -296,9 +296,9 @@ set(handles.RTSetpointHistoryText,'String',' ');
 if isnan(GUI_Variables.SSID)
     set(handles.StatusText,'String',...
         'Invalid subject ID defined. Cannot begin optimization.')
-% elseif GUI_Variables.OmniaTCP.Status == "closed"
-%     set(handles.StatusText,'String',...
-%         'Omnia TCP connection not established. Cannot begin optimization.')
+elseif GUI_Variables.OmniaTCP.Status == "closed"
+    set(handles.StatusText,'String',...
+        'Omnia TCP connection not established. Cannot begin optimization.')
 elseif GUI_Variables.EXOTCP.Status == "closed"
     set(handles.StatusText,'String',...
         'A_EXO TCP connection not established. Cannot begin optimization.')
@@ -515,26 +515,26 @@ else
         'Setup complete. Press "Play" in COSMED and press "ENTER" in MATLAB');
     pause
 
-%     working=0; %Check if working
-%     %Sometimes it just doesn't start right away and you just need to try again
-%     %to establish the tcpclient. So this does that until it is working.
-%     set(handles.StatusText,'String',...
-%         'Checking for breath data from Omnia...');
-%     flushinput(tTCP);
-%     while working==0
-%         try
-%             fopen(tTCP);
-%         catch
-%         end
-%         pause(2)
-%         if tTCP.BytesAvailable>0
-%             t1=fread(tTCP,tTCP.BytesAvailable);
-%             if length(t1)>0
-%                 working=1;
-%             end
-%         else
-%         end
-%     end
+    working=0; %Check if working
+    %Sometimes it just doesn't start right away and you just need to try again
+    %to establish the tcpclient. So this does that until it is working.
+    set(handles.StatusText,'String',...
+        'Checking for breath data from Omnia...');
+    flushinput(tTCP);
+    while working==0
+        try
+            fopen(tTCP);
+        catch
+        end
+        pause(2)
+        if tTCP.BytesAvailable>0
+            t1=fread(tTCP,tTCP.BytesAvailable);
+            if length(t1)>0
+                working=1;
+            end
+        else
+        end
+    end
 
     disp('Ready to begin optimization. Have participant begin walking and press "Enter" in MATLAB');
     set(handles.StatusText,'String',...
