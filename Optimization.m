@@ -719,7 +719,7 @@ else
                             [SS,y_bar] = metabolic_average(fullrate,breathtimes,AverageLapSpeed);
                             Full_y_bar{ConditionNumber} = y_bar';
                             %Full_Metabolic_Data_to_Save{ConditionNumber} = [y_bar',10*y_bar'];
-                            Full_Metabolic_Data_to_Save{ConditionNumber} = [nonzeros(fullrate),nozeros(breathtimes)];
+                            Full_Metabolic_Data_to_Save{ConditionNumber} = [nonzeros(fullrate)/AverageLapSpeed,nonzeros(breathtimes)];
                             SSdata(ConditionNumber, :) = [SS, ConditionNumber, ParamsForCondition]; 
                             ConditionNumber = ConditionNumber+1;
                             counteval = counteval+1; %Keeps track of how many conditions have been tested. 
