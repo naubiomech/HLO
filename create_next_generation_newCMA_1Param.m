@@ -113,6 +113,11 @@ function [xmean, mu, weights, ps, pc, C, c1, cmu, cc, sigma, cs, damps,...
         r_ellipse = [ellipse_x_r;ellipse_y_r]' * R;
 
         testpoints_rot = [xtestpoints; ytestpoints]'*R; 
+        randnums = randperm(length(testpoints_rot));
+        for i = 1:length(testpoints_rot)
+            space_hold(i,:) = testpoints_rot(randnums(i),:); %Randomize the data
+        end
+        testpoints_rot = space_hold;
         
         % Draw the error ellipse
         figure;
