@@ -299,9 +299,9 @@ if isnan(GUI_Variables.SSID)
 % elseif GUI_Variables.OmniaTCP.Status == "closed"
 %     set(handles.StatusText,'String',...
 %         'Omnia TCP connection not established. Cannot begin optimization.')
-elseif GUI_Variables.EXOTCP.Status == "closed"
-    set(handles.StatusText,'String',...
-        'A_EXO TCP connection not established. Cannot begin optimization.')
+% elseif GUI_Variables.EXOTCP.Status == "closed"
+%     set(handles.StatusText,'String',...
+%         'A_EXO TCP connection not established. Cannot begin optimization.')
 elseif GUI_Variables.NumParams == 0
     set(handles.StatusText,'String',...
         'Number of parameters to optimize not selected. Cannot begin optimization.');
@@ -566,23 +566,24 @@ else
          'Waiting for start command from A_EXO...');
     pause(0.1);
     SendValueFlag = 0;
-    StopFlag = ' ';
-    ActiveFlag = 0;
-%    start(TimerVar)
-    while 1 == 1
-        if eTCP.Status == "open"
-            [SendValueFlag,StopFlag,ActiveFlag] = CheckValue(eTCP,StopFlag,ActiveFlag);
-            if ActiveFlag == 1 %Ensures exo has started checking for optimization values
-                set(handles.StatusText,'String','Received start command from A_EXO.');
-                GUI_Variables.Streaming = 1;
-                pause(1)
-                start(TimerVar)
-                break
-            else
-            end
-        else
-        end
-    end
+    StopFlag = 0;
+    ActiveFlag = 1;
+    GUI_Variables.Streaming = 1;
+    start(TimerVar)
+%     while 1 == 1
+%         if eTCP.Status == "open"
+%             [SendValueFlag,StopFlag,ActiveFlag] = CheckValue(eTCP,StopFlag,ActiveFlag);
+%             if ActiveFlag == 1 %Ensures exo has started checking for optimization values
+%                 set(handles.StatusText,'String','Received start command from A_EXO.');
+%                 GUI_Variables.Streaming = 1;
+%                 pause(1)
+%                 start(TimerVar)
+%                 break
+%             else
+%             end
+%         else
+%         end
+%     end
 
     i = 0; %Initialize the counter for storing breaths
     conditiondone = 0; %Initialize to make sure it knows condition isn't done yet.
@@ -606,18 +607,19 @@ else
     DoneFirstValue = 0;
     SetpointHistory = [];
     while 1 == 1
-        if eTCP.Status == "open"
-             [SendValueFlag,StopFlag,ActiveFlag] = CheckValue(eTCP,StopFlag,ActiveFlag);
+%         if eTCP.Status == "open"
+        if 1 == 1
+             %[SendValueFlag,StopFlag,ActiveFlag] = CheckValue(eTCP,StopFlag,ActiveFlag);
             if ActiveFlag == 1 && generationdone == 0
                 while 1 == 1
-                     [SendValueFlag,StopFlag,ActiveFlag] = CheckValue(eTCP,StopFlag,ActiveFlag);
+                    %[SendValueFlag,StopFlag,ActiveFlag] = CheckValue(eTCP,StopFlag,ActiveFlag);
                     if StopFlag == 0 && DoneFirstValue == 0 && GUI_Variables.Stopped == 0
                         NextParamsBig = TimerVar.UserData;
                         NextParams = NextParamsBig(2,:)
                         if NumberofParams == 1
-                             fwrite(eTCP,num2str(NextParams(1)));
+                             %fwrite(eTCP,num2str(NextParams(1)));
                         elseif NumberofParams == 2
-                             fwrite(eTCP,horzcat(num2str(NextParams(1)),'_',num2str(NextParams(2))));
+                             %fwrite(eTCP,horzcat(num2str(NextParams(1)),'_',num2str(NextParams(2))));
                         end
                         DoneFirstValue = 1;
                         set(handles.StatusText,'String',...
@@ -681,9 +683,9 @@ else
                             NextParamsBig = TimerVar.UserData;
                             NextParams = NextParamsBig(2,:)
                             if NumberofParams == 1
-                                 fwrite(eTCP,num2str(NextParams(1)))
+                                 %fwrite(eTCP,num2str(NextParams(1)))
                             elseif NumberofParams == 2
-                                 fwrite(eTCP,horzcat(num2str(NextParams(1)),'_',num2str(NextParams(2))));
+                                 %fwrite(eTCP,horzcat(num2str(NextParams(1)),'_',num2str(NextParams(2))));
                             end
                             set(handles.StatusText,'String',...
                             {'Sent setpoint to A_EXO: ' ...
@@ -741,11 +743,11 @@ else
                             save(fullfile(saveDir,['All_Saved_Data_Following_Gen_', num2str(GenerationNumber),...
                                 '_Cond_', num2str(ConditionNumber-1),'_',SSID]),...
                                 '-regexp',['^(?!',VarsToIgnore,'$).']);
-                             [SendValueFlag,StopFlag,ActiveFlag] = CheckValue(eTCP,StopFlag,ActiveFlag);
+                             %[SendValueFlag,StopFlag,ActiveFlag] = CheckValue(eTCP,StopFlag,ActiveFlag);
                             if StopFlag == 1 || GUI_Variables.Stopped == 1
                                 GUI_Variables.Stopped = 0;
                                 StopFlag = 0;
-                                fwrite(eTCP,'done');
+                                %fwrite(eTCP,'done');
                                 set(handles.StatusText,'String',...
                                     horzcat(['Optimization stopped by user.'...
                                     ' To restart mid-generation select checkbox'...
@@ -789,7 +791,7 @@ else
                                     stop(TimerVar);
                                     error('Not enough conditions completed to seed next generation. Start from mid-generation');
                                 else
-                                    fwrite(eTCP,'done');
+                                    %fwrite(eTCP,'done');
                                     orderedconds = ordering_conditions(SSdata); %(this is a conditionspergen rows by 2+params columns matrix.
 
                                     %Scale back into from 0 to 1, 0 to 1 for both parameters for use in
@@ -873,7 +875,7 @@ else
     set(handles.StatusText,'String',...
         ['Saved file "Completion_of_Gen_',num2str(GenerationNumber),'_',SSID,'"']);
 
-    fwrite(eTCP,'done') %Send completion code to exo GUI
+   % fwrite(eTCP,'done') %Send completion code to exo GUI
 
     set(handles.StatusText,'String',...
         ['Concluded optimizer generation. To start next generation adjust',...
