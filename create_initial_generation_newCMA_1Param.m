@@ -55,15 +55,14 @@ damps = 1 + 2*max(0, sqrt((mueff-1)/(N+1))-1) + cs; % Damping for sigma
         
     end
     randnums = randperm(lambda-1);
-    xold=x;
-    for k=1:lambda-1
-        x(:,k) = xold(:,randnums(k));
-    end
-       
-    
-    %If in the first generation, we also want to be sure that we test the
-    %mean, which in this case is the initial guess, then add
-    x(:,lambda)=xmean %which replaces the last condition found with this one. xmean is column
+    xrand = x(:,randnums); %Randomize the results
+    Max = max(xrand);
+    Min = min(xrand);
+    x(:,1) = Max;
+    x(:,2) = Min;
+    x(:,3) = xmean;
+    x(:,1:3) = x(:,randperm(3)); %Randomize the first 3 parameters again
+    x(:,4:lambda)= xrand(~ismember(xrand,[Max,Min]));
      
 end
 
