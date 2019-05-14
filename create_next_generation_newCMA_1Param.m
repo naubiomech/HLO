@@ -112,12 +112,9 @@ function [xmean, mu, weights, ps, pc, C, c1, cmu, cc, sigma, cs, damps,...
         %let's rotate the ellipse to some angle phi
         r_ellipse = [ellipse_x_r;ellipse_y_r]' * R;
 
-        testpoints_rot = [xtestpoints; ytestpoints]'*R;  
-        randnums = randperm(length(testpoints_rot));
-        for i = 1:length(testpoints_rot)
-            space_hold(i,:) = testpoints_rot(randnums(i),:); %Randomize the data
-        end
-        testpoints_rot = space_hold;
+        testpoints_rot = [xtestpoints; ytestpoints]'*R + X0;  
+        Max = max(testpoints_rot);  % Maximum setpoint
+        Min = min(testpoints_rot);  % Minimum setpoint
         
         % Draw the error ellipse
         figure;
@@ -143,7 +140,9 @@ function [xmean, mu, weights, ps, pc, C, c1, cmu, cc, sigma, cs, damps,...
       NewParamLocations = PossibleLoc(WhereToPlace);    % Where to put the new parameters to test
       OldParamLocations = PossibleLoc(~WhereToPlace);   % Where to put the previous gen parameters
       x = zeros(1,lambda);      % Presize the conditions array
-      x(1, NewParamLocations)=testpoints_rot(:,1)'+X0;
+      x(1,1) = Max;
+      x(1,2) = Min;
+      x(1, NewParamLocations(3:end))=testpoints_rot(~ismember(testpoints_rot,[Max,Min]),1)';
       
       %To test again the best one from last time
       x(1,OldParamLocations(1:end-1)) = best_params_from_previous_as_col;
@@ -152,6 +151,13 @@ function [xmean, mu, weights, ps, pc, C, c1, cmu, cc, sigma, cs, damps,...
       %To test what is predicted as the best for this one, xmean
       %x(:, lambda)=xmean;
       x(1,OldParamLocations(end))= xmean;
+      
+      randnums = randperm(3);
+      for i = 1:length(randnums)
+          space_hold(i) = x(randnums(i)); %Randomize the first 3 or 5 data points
+      end
+      x(1:3) = space_hold;
+      
       disp('Before constraints')
       x
      % pause
