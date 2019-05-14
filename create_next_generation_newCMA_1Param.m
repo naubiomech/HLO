@@ -129,7 +129,7 @@ function [xmean, mu, weights, ps, pc, C, c1, cmu, cc, sigma, cs, damps,...
         hold on;
 
         %Plot the test points
-        plot((testpoints_rot(:,1) + X0)*Peak_torque,(testpoints_rot(:,2) + Y0),'rx')
+        plot((testpoints_rot(:,1))*Peak_torque,(testpoints_rot(:,2)),'rx')
         
       clearvars x
       WhereToPlace = ones(1,lambda);    %Need to make a vector of where to place new conditions
@@ -140,9 +140,9 @@ function [xmean, mu, weights, ps, pc, C, c1, cmu, cc, sigma, cs, damps,...
       NewParamLocations = PossibleLoc(WhereToPlace);    % Where to put the new parameters to test
       OldParamLocations = PossibleLoc(~WhereToPlace);   % Where to put the previous gen parameters
       x = zeros(1,lambda);      % Presize the conditions array
-      x(1,1) = Max;
-      x(1,2) = Min;
-      x(1, NewParamLocations(3:end))=testpoints_rot(~ismember(testpoints_rot,[Max,Min]),1)';
+      x(1,1) = Max(1);
+      x(1,2) = Min(1);
+      x(1, NewParamLocations(3:end))=testpoints_rot(~ismember(testpoints_rot(:,1),[Max,Min]),1)';
       
       %To test again the best one from last time
       x(1,OldParamLocations(1:end-1)) = best_params_from_previous_as_col;
