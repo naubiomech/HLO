@@ -60,3 +60,4 @@ CATKIN_IGNORE
 .png
 *.mat
 *.png
+*.xlsx
