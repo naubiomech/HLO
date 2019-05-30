@@ -22,7 +22,7 @@ function varargout = Optimization(varargin)
 
 % Edit the above text to modify the response to help Optimization
 
-% Last Modified by GUIDE v2.5 27-Mar-2019 15:08:36
+% Last Modified by GUIDE v2.5 29-May-2019 16:32:18
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -70,8 +70,9 @@ enablestream = '<OmniaXB><System><EnableRealTimeInformation><Enabled>1</Enabled>
 GUI_Variables = struct('OmniaTCP',tTCP,'EXOTCP',eTCP,'StreamStr',enablestream,...
     'GenNum',1,'MidGen',0,'CompleteCond',0,'SubjectMass',1,'PkTRQ',0.35,'MinTRQ',0.2,...
     'SSID',NaN,'NumParams',0,'CondPerGen',7,'ConditionTime',210,'Stopped',0,...
-    'TestDate',' ','pullDir',' ','SeedNextGen',0,'Streaming',0);
+    'TestDate',' ','pullDir',' ','SeedNextGen',0,'Streaming',0,'Mode',1);
 
+set(handles.BranchMode,'Value', 1);
 set(handles.GenNumber,'String','1');
 set(handles.MidGenCheckbox,'Value',0);
 set(handles.LastConditionCompleted,'enable','off');
@@ -356,17 +357,23 @@ else
             set(handles.XMeanRT,'String',' ');
         end
         
-        if NumberofParams == 1
-            Initial_Gen = @create_initial_generation_newCMA_1Param;
-        elseif NumberofParams == 2
-            Initial_Gen = @create_initial_generation_newCMA_2Param;
-        end
-        
-       [N, xmean, sigma, lambda, pc, ps, B, D, C, mu, weights, mueff, ...
-        invsqrtC, eigeneval, chiN, cc, cs, c1, cmu, damps, x] = ...
-        Initial_Gen(...
+        if GUI_Variables.Mode == 0
+            if NumberofParams == 1
+                Initial_Gen = @create_initial_generation_newCMA_1Param;
+            elseif NumberofParams == 2
+                Initial_Gen = @create_initial_generation_newCMA_2Param;
+            end
+            [N, xmean, sigma, lambda, pc, ps, B, D, C, mu, weights, mueff, ...
+            invsqrtC, eigeneval, chiN, cc, cs, c1, cmu, damps, x] = ...
+            Initial_Gen(...
             NumberofParams, InitialGuessofParams, sigma_start, ConditionsPerGen,...
             pc_init, ps_init, B_init, D_init, C_init, Peak_torque, Min_torque);
+        else
+            Initial_Gen = @create_gen_Branch;
+            [x,nextRange] = Initial_Gen(Peak_torque, Min_torque);
+        end
+        
+       
 
        %X comes out as 
       % x=[p1a p1b p1c p1d
@@ -378,12 +385,14 @@ else
       %When params_full first comes out of the CMA, it comes out as [0 1] [0 1]
 
       %Turn them back into actual values with peak torques and percents.
-      
-      if NumberofParams == 1
-        Params_full(:,1) = Params_full(:,1)*Peak_torque; %Peak Torque (Nm)
-      elseif NumberofParams == 2
-          Params_full(:,1) = Params_full(:,1)*Peak_torque; %Peak Torque (Nm)
-          Params_full(:,2) = Params_full(:,2)*100;  %Rise time (% of stance time)
+      if GUI_Variables.Mode == 0
+          if NumberofParams == 1
+            Params_full(:,1) = Params_full(:,1)*Peak_torque; %Peak Torque (Nm)
+          elseif NumberofParams == 2
+              Params_full(:,1) = Params_full(:,1)*Peak_torque; %Peak Torque (Nm)
+              Params_full(:,2) = Params_full(:,2)*100;  %Rise time (% of stance time)
+          end
+      else
       end
       
       disp('Your controllers for Gen 1:')
@@ -717,7 +726,12 @@ else
                              end
                             tic %reinitialize timer once you start next controller
                             %nonzeros(breathtimes) %uncomment if you want to see that its working
-                            [SS, y_bar]=fake_metabolic_fit_JB(ParamsForCondition,AverageLapSpeed); %Used for testing the optimization
+                            if GUI_Variables.Mode == 0
+                                [SS, y_bar]=fake_metabolic_fit_JB(ParamsForCondition,AverageLapSpeed); %Used for testing the optimization
+                            else
+                                [SS, y_bar]=metabolic_ranking_Branch(AverageLapSpeed,...
+                                    fullrates, breathtimes);
+                            end     
                             Full_y_bar{ConditionNumber} = y_bar';
                             Full_Metabolic_Data_to_Save{ConditionNumber} = [y_bar',10*y_bar'];
                             SSdata(ConditionNumber, :) = [SS, ConditionNumber, ParamsForCondition]; 
@@ -792,37 +806,48 @@ else
                                     error('Not enough conditions completed to seed next generation. Start from mid-generation');
                                 else
                                     %fwrite(eTCP,'done');
-                                    orderedconds = ordering_conditions(SSdata); %(this is a conditionspergen rows by 2+params columns matrix.
-
+                                    if GUI_Variables.Mode == 0
+                                        orderedconds = ordering_conditions(SSdata); %(this is a conditionspergen rows by 2+params columns matrix.
+                                    else
+                                        orderedconds = ordering_conditions_Branch(SSdata);
+                                    end
                                     %Scale back into from 0 to 1, 0 to 1 for both parameters for use in
-                                    %CMA. 
+                                    %CMA.  
                                     %orderedconds(:,1) = orderedconds(:,1);
                                     %orderedconds(:,2) = orderedconds(:,2);
-                                    if NumberofParams == 1
-                                        orderedconds(:,3) = orderedconds(:,3)/Peak_torque;
-                                        Next_Gen = @create_next_generation_newCMA_1Param;
-                                    elseif NumberofParams == 2
-                                        orderedconds(:,3) = orderedconds(:,3)/Peak_torque;
-                                        orderedconds(:,4) = orderedconds(:,4)/100; 
-                                        Next_Gen = @create_next_generation_newCMA_2Param;
-                                    end
-                                    Old_Params_full = Params_full; %Save old parameters for plotting
-
-                                    [xmean, mu, weights, ps, pc, C, c1, cmu, cc, sigma, cs, damps,...
+                                     Old_Params_full = Params_full; %Save old parameters for plotting
+                                    if GUI_Variables.Mode == 0
+                                        if NumberofParams == 1
+                                            orderedconds(:,3) = orderedconds(:,3)/Peak_torque;
+                                            Next_Gen = @create_next_generation_newCMA_1Param;
+                                        elseif NumberofParams == 2
+                                            orderedconds(:,3) = orderedconds(:,3)/Peak_torque;
+                                            orderedconds(:,4) = orderedconds(:,4)/100; 
+                                            Next_Gen = @create_next_generation_newCMA_2Param;
+                                        end
+                                        [xmean, mu, weights, ps, pc, C, c1, cmu, cc, sigma, cs, damps,...
                                         chiN, eigeneval, invsqrtC, counteval, x, lambda, Params_full, N, B, D, mueff] = ...
                                         Next_Gen(orderedconds, xmean, mu, weights,ps, pc, C, c1,...
                                         cmu, cc, sigma, cs, damps, chiN, eigeneval, invsqrtC, counteval, x, lambda, N, B, D, mueff, Peak_torque, Min_torque)
-
+                                    else
+                                        Next_Gen = @create_next_gen_Branch;
+                                        [x,nextRange,peakTorque,minTorque,xmean] = Next_Gen(orderedconds);
+                                    end
+                                   
                                     %When params_full comes out of the CMA, it comes out as 0 to 1, 0
                                     %to 1. 
                                     %Turn Params_full into actual numbers.
-                                    if NumberofParams == 1
-                                        Params_full(:,1) = Params_full(:,1)*Peak_torque; %Peak Torque (Nm)
-                                        xmean_num = xmean'.* [Peak_torque];
-                                    elseif NumberofParams == 2
-                                        Params_full(:,1) = Params_full(:,1)*Peak_torque; %Peak Torque (Nm)
-                                        Params_full(:,2) = Params_full(:,2)*100;  %Rise time (% of stance time)
-                                        xmean_num = xmean'.* [Peak_torque, 100];
+                                    if GUI_Variables.Mode == 0
+                                        if NumberofParams == 1
+                                            Params_full(:,1) = Params_full(:,1)*Peak_torque; %Peak Torque (Nm)
+                                            xmean_num = xmean'.* [Peak_torque];
+                                        elseif NumberofParams == 2
+                                            Params_full(:,1) = Params_full(:,1)*Peak_torque; %Peak Torque (Nm)
+                                            Params_full(:,2) = Params_full(:,2)*100;  %Rise time (% of stance time)
+                                            xmean_num = xmean'.* [Peak_torque, 100];
+                                        end
+                                    else
+                                        xmean_num = xmean;
                                     end
                                     generationdone=1;
                                     stop(TimerVar) %Stops the timer. 
@@ -1654,6 +1679,43 @@ else %If we're stopped we can attempt to seed from the available saved condition
     set(gca,'FontWeight','Bold');
     saveas(gcf,fullfile(saveDir,[get(gcf,'Name'),'.png']));
     
+end
+
+end
+
+
+% --- Executes on button press in BranchMode.
+function BranchMode_Callback(hObject, eventdata, handles)
+% hObject    handle to BranchMode (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of BranchMode
+
+global GUI_Variables
+
+if get(hObject,'Value')
+    GUI_Variables.Mode = 1;
+    set(handles.CMAMode,'value',0);
+end
+    
+end
+
+
+
+% --- Executes on button press in CMAMode.
+function CMAMode_Callback(hObject, eventdata, handles)
+% hObject    handle to CMAMode (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of CMAMode
+
+global GUI_Variables
+
+if get(hObject,'Value')
+    GUI_Variables.Mode = 0;
+    set(handles.BranchMode,'value',0);
 end
 
 end
