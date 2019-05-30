@@ -69,7 +69,7 @@ enablestream = '<OmniaXB><System><EnableRealTimeInformation><Enabled>1</Enabled>
 
 GUI_Variables = struct('OmniaTCP',tTCP,'EXOTCP',eTCP,'StreamStr',enablestream,...
     'GenNum',1,'MidGen',0,'CompleteCond',0,'SubjectMass',1,'PkTRQ',0.35,'MinTRQ',0.2,...
-    'SSID',NaN,'NumParams',0,'CondPerGen',7,'ConditionTime',210,'Stopped',0,...
+    'SSID',NaN,'NumParams',0,'CondPerGen',6,'ConditionTime',240,'Stopped',0,...
     'TestDate',' ','pullDir',' ','SeedNextGen',0,'Streaming',0,'Mode',1);
 
 set(handles.BranchMode,'Value', 1);
@@ -77,7 +77,7 @@ set(handles.GenNumber,'String','1');
 set(handles.MidGenCheckbox,'Value',0);
 set(handles.LastConditionCompleted,'enable','off');
 set(handles.LastConditionCompleted,'String','0');
-set(handles.ConditionTime,'String','210');
+set(handles.ConditionTime,'String','240');
 set(handles.SubjectMass,'String','1');
 set(handles.MaxPeakTorque,'String','0.35');
 set(handles.MinTRQ,'String','0.2');
@@ -86,6 +86,9 @@ set(handles.OmniaTCPStatus,'Color',[1 1 1]);
 set(handles.ExoTCPStatus,'Color',[1 1 1]);
 set(handles.OneParamCheck,'Value',0);
 set(handles.TwoParamCheck,'Value',0);
+set(handles.OneParamCheck,'Enable','off');
+set(handles.TwoParamCheck,'Enable','off');
+set(handles.SeedNextGen,'enable','off');
 set(handles.TestDate,'enable','off');
 set(handles.TestDate,'String','DD-Mon-YYYY');
 set(handles.StatusText,'String',...
@@ -325,10 +328,10 @@ else
     saveDir = [currentDir,'\',SSID,'_',date,'\'];   % Save directory
     
     if NumberofParams == 1
-        InitialGuessofParams = [0.25*Subject_mass]; %[randi([0,14]); randi([30,70]) ]; %EDIT %Must be a column of parameters %For testing %Best guess (0 to Peak torque) (0 to 100)
+        InitialGuessofParams = [Min_torque+(Peak_torque-Min_torque)/2]; %[randi([0,14]); randi([30,70]) ]; %EDIT %Must be a column of parameters %For testing %Best guess (0 to Peak torque) (0 to 100)
         InitialGuessofParams(1) = InitialGuessofParams(1)/Peak_torque; %This makes it range from 0 to 1.
     elseif NumberofParams == 2
-        InitialGuessofParams = [0.25*Subject_mass; 50]; %[randi([0,14]); randi([30,70]) ]; %EDIT %Must be a column of parameters %For testing %Best guess (0 to Peak torque) (0 to 100)
+        InitialGuessofParams = [Min_torque+(Peak_torque-Min_torque)/2; 50]; %[randi([0,14]); randi([30,70]) ]; %EDIT %Must be a column of parameters %For testing %Best guess (0 to Peak torque) (0 to 100)
         InitialGuessofParams(1) = InitialGuessofParams(1)/Peak_torque; %This makes it range from 0 to 1.
         InitialGuessofParams(2) = InitialGuessofParams(2)/100; %This makes the percentage range from 0 to 1.
     end
@@ -726,12 +729,8 @@ else
                              end
                             tic %reinitialize timer once you start next controller
                             %nonzeros(breathtimes) %uncomment if you want to see that its working
-                            if GUI_Variables.Mode == 0
-                                [SS, y_bar]=fake_metabolic_fit_JB(ParamsForCondition,AverageLapSpeed); %Used for testing the optimization
-                            else
-                                [SS, y_bar]=metabolic_ranking_Branch(AverageLapSpeed,...
-                                    fullrates, breathtimes);
-                            end     
+                            [SS, y_bar]=fake_metabolic_fit_JB(ParamsForCondition,AverageLapSpeed); %Used for testing the optimization
+                            
                             Full_y_bar{ConditionNumber} = y_bar';
                             Full_Metabolic_Data_to_Save{ConditionNumber} = [y_bar',10*y_bar'];
                             SSdata(ConditionNumber, :) = [SS, ConditionNumber, ParamsForCondition]; 
@@ -1695,8 +1694,15 @@ function BranchMode_Callback(hObject, eventdata, handles)
 global GUI_Variables
 
 if get(hObject,'Value')
+    GUI_Variables.NumParams = 1;
     GUI_Variables.Mode = 1;
+    GUI_Variables.CondPerGen = 6;
     set(handles.CMAMode,'value',0);
+    set(handles.OneParamCheck,'enable','off');
+    set(handles.TwoParamCheck,'enable','off');
+    set(handles.OneParamCheck,'value',0);
+    set(handles.TwoParamCheck,'value',0);
+    set(handles.SeedNextGen,'enable','off');
 end
     
 end
@@ -1716,6 +1722,9 @@ global GUI_Variables
 if get(hObject,'Value')
     GUI_Variables.Mode = 0;
     set(handles.BranchMode,'value',0);
+    set(handles.OneParamCheck,'enable','on');
+    set(handles.TwoParamCheck,'enable','on');
+    set(handles.SeedNextGen,'enable','on');
 end
 
 end
